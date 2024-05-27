@@ -12,6 +12,7 @@ python3 << EOF
 
 import vim
 
+AI_ROLE_TAG = "<<AI_ROLE>>"
 ME_TAG = "<<ME>>"
 
 if vim.eval('exists("g:vgp_split")') == '1':
@@ -28,8 +29,10 @@ vim.command("let b:is_ai_buffer=1")
 #vim.command("set wrap")
 vim.command("syntax match VGPHighlightTags /<<AI>>/")
 vim.command("syntax match VGPHighlightTags /<<ME>>/")
+vim.command("syntax match VGPHighlightTags /<<AI_ROLE>>/")
 vim.command("hi VGPHighlightTags ctermfg=Green")
-vim.current.buffer[0] = ME_TAG
+vim.current.buffer[0] = AI_ROLE_TAG
+vim.current.buffer.append(ME_TAG)
 
 EOF
 endfunction
@@ -59,10 +62,17 @@ if vim.eval('exists("b:is_ai_buffer")') != '1':
     raise vim.error("""Buffer does not support ai dialogue, you have to
         let b:is_ai_buffer='1'""")
 
-def parse_dialogue(string_io, me_tag, ai_tag):
+def parse_dialogue(string_io, me_tag, ai_tag, ai_role_tag):
     content = string_io.read()
     start = 0
     message_list = []
+
+    ai_role = content.find(ai_role_tag, start);
+    if ai_role != -1:
+        me_start = content.find(me_tag, start)
+        ai_role_content = content[ai_role+len(ai_role_tag):me_start].strip();
+        message_list.append({"role": "system", "content": ai_role_content})
+
     while True:
         me_start = content.find(me_tag, start)
         if me_start == -1:
@@ -90,11 +100,12 @@ def parse_dialogue(string_io, me_tag, ai_tag):
 
 ME_TAG = "<<ME>>"
 AI_TAG = "<<AI>>"
+AI_ROLE_TAG = "<<AI_ROLE>>"
 
 def send_dialogue_and_output():
     result = '\n'.join(vim.current.buffer[:])
     s = StringIO(result)
-    msg_list = parse_dialogue(s, ME_TAG, AI_TAG)
+    msg_list = parse_dialogue(s, ME_TAG, AI_TAG, AI_ROLE_TAG)
     completion = openai.ChatCompletion.create(
         model=OPENAI_MODEL,
         messages=msg_list,
