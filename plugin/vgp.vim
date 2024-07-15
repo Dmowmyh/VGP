@@ -1,12 +1,3 @@
-"TODO
-"Syntax highlighting of <<ME>> and <<AI>> block
-"User configuration of TAGS
-"Command to set current buffer as dialogue buffer
-"User configuration to initial AI role and specifics
-"Add token information
-"Customize highlight colors
-"Use stream and async
-
 function! VGPStartDialogue()
 python3 << EOF
 
