@@ -38,7 +38,7 @@ else:
 vim.command(f'{buffer_split_command} {full_path}')
 
 vim.command("let b:is_ai_buffer=1")
-#vim.command("set wrap")
+vim.command("set wrap")
 vim.command("syntax match VGPHighlightTags /<<AI>>/")
 vim.command("syntax match VGPHighlightTags /<<ME>>/")
 vim.command("syntax match VGPHighlightTags /<<AI_ROLE>>/")
