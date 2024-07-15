@@ -11,19 +11,31 @@ function! VGPStartDialogue()
 python3 << EOF
 
 import vim
+import datetime
+import os
 
 AI_ROLE_TAG = "<<AI_ROLE>>"
 ME_TAG = "<<ME>>"
 
+#Create new buffer with file name datetime in predefined folder
+current_time = datetime.datetime.now().strftime(f'%Y-%m-%d.%H:%M')
+file_name = f"{current_time}.txt"
+folder_path = os.path.expanduser('~/.gpt_history')
+if not os.path.exists(folder_path):
+    os.makedirs(folder_path)
+full_path = os.path.join(folder_path, file_name)
+
+buffer_split_command = ""
 if vim.eval('exists("g:vgp_split")') == '1':
     if vim.eval("g:vgp_split") == 'horizontal':
-        vim.command("new")
+        buffer_split_command = "new"
     elif vim.eval("g:vgp_split") == 'vertical':
-        vim.command("vnew")
+        buffer_split_command = "vnew"
     else:
-        vim.command("vnew")
+        buffer_split_command = "vnew"
 else:
-    vim.command("vnew")
+    buffer_split_command = "vnew"
+vim.command(f'{buffer_split_command} {full_path}')
 
 vim.command("let b:is_ai_buffer=1")
 #vim.command("set wrap")
