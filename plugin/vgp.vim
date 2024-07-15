@@ -57,6 +57,7 @@ python3 << EOF
 from io import StringIO
 import vim
 import openai
+import time
 
 if vim.eval('exists("g:openai_key")') != '1':
     raise vim.error('''You must configure your openai api key with
@@ -118,27 +119,22 @@ def send_dialogue_and_output():
     result = '\n'.join(vim.current.buffer[:])
     s = StringIO(result)
     msg_list = parse_dialogue(s, ME_TAG, AI_TAG, AI_ROLE_TAG)
-    completion = openai.ChatCompletion.create(
-        model=OPENAI_MODEL,
-        messages=msg_list,
-        stream=False
-    )
-    response = completion.choices[0].message.content
-
-    #TODO(): Information about token usage
-    #usage = completion.usage
-    #total_tokens = usage["total_tokens"]
-    #prompt_tokens = usage["prompt_tokens"]
-    #completion_tokens = usage["completion_tokens"]
-    #vim.current.buffer[0:0] = [
-    #    "Total tokens: " + str(total_tokens),
-    #    "Prompt tokens: " + str(prompt_tokens),
-    #    "Completion tokens: " + str(completion_tokens)
-    #]
-
-    vim.current.buffer.append(AI_TAG)
-    vim.current.buffer.append(response.splitlines())
-    vim.current.buffer.append(ME_TAG)
+    try:
+        start_time = time.perf_counter()
+        completion = openai.ChatCompletion.create(
+            model=OPENAI_MODEL,
+            messages=msg_list,
+            stream=False
+        )
+        response = completion.choices[0].message.content
+        vim.current.buffer.append(AI_TAG)
+        vim.current.buffer.append(response.splitlines())
+        vim.current.buffer.append(ME_TAG)
+        end_time = time.perf_counter()
+        elapsed_time_ms = (end_time - start_time) * 1000
+        print(f"Elapsed time for response: {elapsed_time_ms:.4f} ms")
+    except Exception as e:
+        print(e)
 
 send_dialogue_and_output()
 
