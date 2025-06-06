@@ -48,19 +48,13 @@ python3 << EOF
 from io import StringIO
 import vim
 import openai
+import anthropic
 import time
 
-if vim.eval('exists("g:openai_key")') != '1':
-    raise vim.error('''You must configure your openai api key with
-    let g:openai_key = "YOUR_KEY"''')
-
-if vim.eval('exists("g:openai_model")') != '1':
-    raise vim.error('''You must choose gpt model with
-    let g:openai_model = "MODEL_NAME"''')
-
-OPENAI_API_KEY = vim.eval("g:openai_key")
-openai.api_key = OPENAI_API_KEY
-OPENAI_MODEL = vim.eval("g:openai_model")
+OPENAI_API_KEY = vim.eval("g:openai_key") if vim.eval('exists("g:openai_key")') == '1' else None
+OPENAI_MODEL = vim.eval("g:openai_model") if vim.eval('exists("g:openai_model")') == '1' else "gpt-3.5-turbo"
+ANTHROPIC_MODEL = vim.eval("g:anthropic_model") if vim.eval('exists("g:anthropic_model")') == '1' else "claude-2"
+ANTHROPIC_API_KEY = vim.eval("g:anthropic_key") if vim.eval('exists("g:anthropic_key")') == '1' else None
 
 if vim.eval('exists("b:is_ai_buffer")') != '1':
     raise vim.error("""Buffer does not support ai dialogue, you have to
@@ -97,7 +91,7 @@ def parse_dialogue(string_io, me_tag, ai_tag, ai_role_tag):
             ai_end = len(content)
 
         ai_content = content[ai_start + len(ai_tag):ai_end].strip()
-        message_list.append({"role": "system", "content": ai_content})
+        message_list.append({"role": "assistant", "content": ai_content})
 
         start = ai_end
     return message_list
@@ -106,20 +100,44 @@ ME_TAG = "<<ME>>"
 AI_TAG = "<<AI>>"
 AI_ROLE_TAG = "<<AI_ROLE>>"
 
+def use_openai():
+    return vim.eval('exists("g:ai_current")') == '1' and vim.eval("g:ai_current") == 'openai'
+
+def use_anthropic():
+    return vim.eval('exists("g:ai_current")') == '1' and vim.eval("g:ai_current") == 'anthropic'
+
 def send_dialogue_and_output():
     result = '\n'.join(vim.current.buffer[:])
     s = StringIO(result)
     msg_list = parse_dialogue(s, ME_TAG, AI_TAG, AI_ROLE_TAG)
     try:
-        start_time = time.perf_counter()
-        completion = openai.ChatCompletion.create(
-            model=OPENAI_MODEL,
-            messages=msg_list,
-            stream=False
-        )
-        response = completion.choices[0].message.content
+        start_time = time.perf_counter()    
+        response = None;
+
+        if use_openai():
+            if OPENAI_API_KEY is None:
+                raise vim.error("You must set g:openai_key variable to use OpenAI API")
+            client = openai.OpenAI(api_key=OPENAI_API_KEY)
+            ai_response = client.responses.create(
+                model=OPENAI_MODEL,
+                #tools=[{"type":"web_search_preview"}],
+                input=msg_list,
+                stream=False,
+            )
+            response = ai_response
+        #UNDER CONSTRUCTION
+        #elif use_anthropic():
+        #    anthropic.Client().api_key = ANTRPOIC_API_KEY
+        #    completion = anthropic.Client().chat.completions.create(
+        #        model=ANTHROPIC_MODEL,
+        #        messages=msg_list,
+        #    )
+        #    response = completion.choices[0].message.content
+        else:
+            raise vim.error("You must choose ai provider with g:ai_current variable") 
+
         vim.current.buffer.append(AI_TAG)
-        vim.current.buffer.append(response.splitlines())
+        vim.current.buffer.append(response.output_text.splitlines())
         vim.current.buffer.append(ME_TAG)
         end_time = time.perf_counter()
         elapsed_time_ms = (end_time - start_time) * 1000
